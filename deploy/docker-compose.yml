@@ -1,0 +1,78 @@
+# Коннекторы Claude на сервере: шлюз (OAuth, вход владельца, маршрутизация) и четыре
+# коннектора за ним. Снаружи открыт только шлюз, и только на 127.0.0.1: перед ним
+# стоит Nginx Proxy Manager с TLS (agent.example.com → 127.0.0.1:48678).
+#
+# Рядом с этим файлом: .env (PUBLIC_URL, GATEWAY_SECRET), исходники mcp-gateway/, bybit-mcp/,
+# telegram-mcp/, ubuntu-mcp/, yandex-tracker-mcp/ и папки данных data/… и files/… (владелец — uid 1000, права
+# 0700). Коннектор Ubuntu работает не в контейнере, а на самом сервере (служба systemd
+# agent-ubuntu, её ставит ubuntu-mcp/deploy/install.sh) и слушает unix-сокет в run/ubuntu;
+# контейнер ubuntu лишь пересылает к нему запросы шлюза.
+name: agent
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  tmpfs: ['/tmp']
+  cap_drop: ['ALL']
+  security_opt: ['no-new-privileges:true']
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: '3' }
+
+services:
+  gateway:
+    <<: *hardening
+    build: ./mcp-gateway
+    image: agent-gateway:local
+    ports: ['127.0.0.1:48678:48678']
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL}
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+      SITE_NAME: ${SITE_NAME:-Коннекторы Claude}
+      ROUTES: >-
+        [{"path":"/bybit","title":"Bybit","upstream":"http://bybit:8080","public":["/alerts"]},
+        {"path":"/telegram","title":"Telegram","upstream":"http://telegram:8080","public":["/messages"]},
+        {"path":"/ubuntu","title":"Ubuntu","upstream":"http://ubuntu:8080"},
+        {"path":"/tracker","title":"Yandex Tracker","upstream":"http://tracker:8080"}]
+    volumes: ['./data/gateway:/data']
+    depends_on: [bybit, telegram, ubuntu, tracker]
+    mem_limit: 192m
+
+  bybit:
+    <<: *hardening
+    build: ./bybit-mcp
+    image: agent-bybit:local
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL}/bybit
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+    volumes: ['./data/bybit:/data']
+    mem_limit: 256m
+
+  telegram:
+    <<: *hardening
+    build: ./telegram-mcp
+    image: agent-telegram:local
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL}/telegram
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+    volumes: ['./data/telegram:/data', './files/telegram:/files']
+    mem_limit: 384m
+
+  # Пересыльщик к коннектору Ubuntu на самом сервере: TCP в сети Docker → unix-сокет
+  # службы agent-ubuntu (папка run/ubuntu — root:1000, 0750).
+  ubuntu:
+    <<: *hardening
+    build: { context: ./ubuntu-mcp, dockerfile: relay/Dockerfile }
+    image: agent-ubuntu-relay:local
+    volumes: ['./run/ubuntu:/run/ubuntu']
+    mem_limit: 64m
+
+  tracker:
+    <<: *hardening
+    build: ./yandex-tracker-mcp
+    image: agent-tracker:local
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL}/tracker
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+    volumes: ['./data/tracker:/data']
+    mem_limit: 128m

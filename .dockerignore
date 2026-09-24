@@ -1,0 +1,9 @@
+node_modules
+dist
+test
+scripts
+.git
+*.log
+.DS_Store
+deploy
+migrate

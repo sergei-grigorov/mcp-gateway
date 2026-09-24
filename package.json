@@ -1,0 +1,16 @@
+{
+  "name": "mcp-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Шлюз коннекторов Claude (MCP) на сервере: OAuth 2.1, вход владельца, маршрутизация по путям",
+  "type": "module",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "cli": "node server/cli.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}
