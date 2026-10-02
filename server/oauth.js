@@ -22,6 +22,11 @@ import path from 'node:path';
 import { JsonFile, readJson } from './store.js';
 
 export const KNOWN_CLIENTS = {
+  'https://chatgpt.com/oauth/client.json': {
+    client_name: 'ChatGPT',
+    redirect_uris: ['https://chatgpt.com/connector_platform_oauth_redirect'],
+    token_endpoint_auth_method: 'none',
+  },
   'https://claude.ai/oauth/mcp-oauth-client-metadata': {
     client_name: 'Claude',
     redirect_uris: ['https://claude.ai/api/mcp/auth_callback'],
@@ -34,6 +39,7 @@ export const KNOWN_CLIENTS = {
   },
 };
 const CLAUDE_REDIRECTS = ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback'];
+const CHATGPT_REDIRECTS = ['https://chatgpt.com/connector_platform_oauth_redirect'];
 const AUTH_METHODS = ['none', 'client_secret_post', 'client_secret_basic'];
 const CODE_TTL_MS = 5 * 60_000;
 const PENDING_TTL_MS = 15 * 60_000;
@@ -253,13 +259,20 @@ export class OAuthServer {
     }
     if (u.hash) return false;
     if (isLoopback(u)) return true;
+    if (CHATGPT_REDIRECTS.some((r) => redirectMatches(r, uri))) return true;
+    // New ChatGPT connections can use a callback-specific redirect:
+    // https://chatgpt.com/connector/oauth/{callback_id}
+    if (u.protocol === 'https:' && u.hostname === 'chatgpt.com' && /^\/connector\/oauth\/[^/]+$/.test(u.pathname)) return true;
     return [...CLAUDE_REDIRECTS, ...this.config.redirectUris].some((r) => redirectMatches(r, uri));
   }
 
   isKnownReturn(uri) {
     try {
       const u = new URL(uri);
-      return isLoopback(u) || CLAUDE_REDIRECTS.some((r) => redirectMatches(r, uri));
+      return isLoopback(u)
+        || CHATGPT_REDIRECTS.some((r) => redirectMatches(r, uri))
+        || (u.protocol === 'https:' && u.hostname === 'chatgpt.com' && /^\/connector\/oauth\/[^/]+$/.test(u.pathname))
+        || CLAUDE_REDIRECTS.some((r) => redirectMatches(r, uri));
     } catch {
       return false;
     }
