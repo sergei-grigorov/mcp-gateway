@@ -285,6 +285,26 @@ export class OAuthServer {
     if (!/^https:\/\//i.test(clientId)) throw new OAuthError('invalid_client', 'Unknown client_id', 401);
     const known = Object.hasOwn(KNOWN_CLIENTS, clientId) ? KNOWN_CLIENTS[clientId] : null;
     if (known) return { id: clientId, source: 'cimd', ...known };
+
+    // ChatGPT may advertise a callback-specific client metadata document.
+    // Its client identity is deterministic, so do not fetch it over the network.
+    const cu = new URL(clientId);
+    if (cu.hostname === 'chatgpt.com' && cu.pathname.startsWith('/oauth/') && cu.pathname.endsWith('/client.json')) {
+      const callbackId = cu.pathname.slice('/oauth/'.length, -'/client.json'.length);
+      if (callbackId && !callbackId.includes('/')) {
+        return {
+          id: clientId,
+          source: 'cimd',
+          client_name: 'ChatGPT',
+          redirect_uris: [
+            `https://chatgpt.com/connector/oauth/${callbackId}`,
+            'https://chatgpt.com/connector_platform_oauth_redirect',
+          ],
+          token_endpoint_auth_method: 'none',
+        };
+      }
+    }
+
     const cached = this.cimd.get(clientId);
     if (cached && cached.until > this.now()) return { id: clientId, source: 'cimd', ...cached.meta };
     let u;
