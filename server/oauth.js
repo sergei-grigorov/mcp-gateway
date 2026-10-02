@@ -127,12 +127,15 @@ export async function fetchClientMetadata(url, { timeoutMs = 5000 } = {}) {
         path: `${u.pathname}${u.search}`,
         method: 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'mcp-gateway' },
+        // We already resolved and validated the hostname above. Disable Node's
+        // Happy Eyeballs / autoSelectFamily path here: it changes the custom
+        // lookup callback to the multi-address API and can produce
+        // ERR_INVALID_IP_ADDRESS on Node 20+.
+        autoSelectFamily: false,
         lookup: (_host, _opts, cb) => {
-          // Node 22+ may consume the custom lookup result in multi-address
-          // mode even when opts.all is not set on the request.
-          // Always return the array form and keep the connection pinned to
-          // the address that passed the SSRF/public-address check above.
-          cb(null, [{ address: good.address, family: good.family }]);
+          // Pin the connection to the address that passed the SSRF/public-address
+          // check above, while keeping the original hostname for TLS/SNI.
+          cb(null, good.address, good.family);
         },
         timeout: timeoutMs,
       },
