@@ -97,6 +97,22 @@ test('CIMD: ChatGPT — встроенный клиент и оба формат
   }
 });
 
+test('CIMD: ChatGPT callback-specific client metadata', async () => {
+  const g = await startGateway({ fetchMetadata: async () => assert.fail('ChatGPT CIMD must not be fetched over the network') });
+  try {
+    const callbackId = 'test-callback-123';
+    const clientId = `https://chatgpt.com/oauth/${callbackId}/client.json`;
+    const result = await authorizeAndToken(g.base, {
+      clientId,
+      redirectUri: `https://chatgpt.com/connector/oauth/${callbackId}`,
+      resource: `${g.base}/bybit`,
+    });
+    assert.equal(result.token.status, 200);
+  } finally {
+    await g.close();
+  }
+});
+
 test('CIMD: Claude и Claude Code — встроенные документы, свой адрес возврата у каждого', async () => {
   const g = await startGateway({ fetchMetadata: async () => assert.fail('встроенные документы не скачиваются') });
   try {
