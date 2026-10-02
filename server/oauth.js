@@ -127,7 +127,16 @@ export async function fetchClientMetadata(url, { timeoutMs = 5000 } = {}) {
         path: `${u.pathname}${u.search}`,
         method: 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'mcp-gateway' },
-        lookup: (_host, _opts, cb) => cb(null, good.address, good.family),
+        lookup: (_host, opts, cb) => {
+          // Node may request all DNS results from the custom lookup callback.
+          // Return the shape required by that mode while still pinning the
+          // connection to the already-validated public address.
+          if (opts?.all) {
+            cb(null, [{ address: good.address, family: good.family }]);
+          } else {
+            cb(null, good.address, good.family);
+          }
+        },
         timeout: timeoutMs,
       },
       (res) => {
