@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import { canonicalResource, redirectMatches } from '../server/oauth.js';
 import { authorizeAndToken, form, PASSWORD, pkce, req, startGateway } from './helpers.js';
 
+const CHATGPT = 'https://chatgpt.com/oauth/client.json';
+const CHATGPT_CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect';
 const CLAUDE = 'https://claude.ai/oauth/mcp-oauth-client-metadata';
 const CLAUDE_CODE = 'https://claude.ai/oauth/claude-code-client-metadata';
 const CALLBACK = 'https://claude.ai/api/mcp/auth_callback';
@@ -64,6 +66,29 @@ test('MCP без токена: 401 со ссылкой на метаданные
     const bad = await req(g.base, '/bybit', { method: 'POST', headers: { Authorization: 'Bearer nope', 'Content-Type': 'application/json' }, body: '{}' });
     assert.equal(bad.status, 401);
     assert.match(bad.headers.get('www-authenticate'), /error="invalid_token"/);
+  } finally {
+    await g.close();
+  }
+});
+
+test('CIMD: ChatGPT — встроенный клиент и оба формата callback', async () => {
+  const g = await startGateway({ fetchMetadata: async () => assert.fail('встроенный ChatGPT-документ не должен скачиваться') });
+  try {
+    const stable = await authorizeAndToken(g.base, {
+      clientId: CHATGPT,
+      redirectUri: CHATGPT_CALLBACK,
+      resource: `${g.base}/bybit`,
+    });
+    assert.equal(stable.token.status, 200);
+    assert.equal(stable.back.searchParams.get('iss'), g.base);
+
+    const callback = 'https://chatgpt.com/connector/oauth/test-callback';
+    const dynamic = await authorizeAndToken(g.base, {
+      clientId: 'https://chatgpt.com/oauth/test-callback/client.json',
+      redirectUri: callback,
+      resource: `${g.base}/telegram`,
+    });
+    assert.equal(dynamic.page.status, 400);
   } finally {
     await g.close();
   }
