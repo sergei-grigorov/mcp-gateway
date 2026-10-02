@@ -82,13 +82,16 @@ test('CIMD: ChatGPT — встроенный клиент и оба формат
     assert.equal(stable.token.status, 200);
     assert.equal(stable.back.searchParams.get('iss'), g.base);
 
-    const callback = 'https://chatgpt.com/connector/oauth/test-callback';
-    const dynamic = await authorizeAndToken(g.base, {
-      clientId: 'https://chatgpt.com/oauth/test-callback/client.json',
-      redirectUri: callback,
-      resource: `${g.base}/telegram`,
+    const reg = await req(g.base, '/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: 'ChatGPT callback',
+        redirect_uris: ['https://chatgpt.com/connector/oauth/test-callback'],
+        token_endpoint_auth_method: 'none',
+      }),
     });
-    assert.equal(dynamic.page.status, 400);
+    assert.equal(reg.status, 201);
   } finally {
     await g.close();
   }
