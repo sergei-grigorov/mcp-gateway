@@ -323,7 +323,7 @@ export class OAuthServer {
     }
     for (const u of uris) {
       if (!this.allowedRedirect(u)) {
-        throw new OAuthError('invalid_redirect_uri', `Redirect URI is not allowed on this server: ${u}. Allowed: Claude (claude.ai) and local apps (http://localhost).`);
+        throw new OAuthError('invalid_redirect_uri', `Redirect URI is not allowed on this server: ${u}. Allowed: ChatGPT (chatgpt.com), Claude (claude.ai/claude.com), and local apps (http://localhost).`);
       }
     }
     const method = body.token_endpoint_auth_method ?? 'client_secret_basic';
