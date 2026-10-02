@@ -127,15 +127,12 @@ export async function fetchClientMetadata(url, { timeoutMs = 5000 } = {}) {
         path: `${u.pathname}${u.search}`,
         method: 'GET',
         headers: { Accept: 'application/json', 'User-Agent': 'mcp-gateway' },
-        lookup: (_host, opts, cb) => {
-          // Node may request all DNS results from the custom lookup callback.
-          // Return the shape required by that mode while still pinning the
-          // connection to the already-validated public address.
-          if (opts?.all) {
-            cb(null, [{ address: good.address, family: good.family }]);
-          } else {
-            cb(null, good.address, good.family);
-          }
+        lookup: (_host, _opts, cb) => {
+          // Node 22+ may consume the custom lookup result in multi-address
+          // mode even when opts.all is not set on the request.
+          // Always return the array form and keep the connection pinned to
+          // the address that passed the SSRF/public-address check above.
+          cb(null, [{ address: good.address, family: good.family }]);
         },
         timeout: timeoutMs,
       },
