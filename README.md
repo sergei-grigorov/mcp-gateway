@@ -129,6 +129,10 @@ node migrate/desktop-export.mjs /tmp/export
 
 Сессия Telegram — файл `~/.telegram-mcp/accounts/<имя>.json` — переносится в `data/telegram/accounts/`. **Одну и ту же сессию нельзя использовать с двух адресов одновременно**: Telegram сочтёт это кражей ключа (`AUTH_KEY_DUPLICATED`) и завершит сессию. Поэтому файл переносится, а не копируется, и локальное расширение Telegram после переноса нужно выключить. Если Telegram нужен и локально, войдите там заново — получится отдельная сессия.
 
+## Подключение к Grok
+
+В Grok откройте [Connectors](https://grok.com/connectors), создайте **New Connector → Custom** и укажите URL нужного MCP-коннектора, например `https://agent.sergei-grigorov.com/telegram`. OAuth-шлюз разрешает официальный callback Grok `https://grok.com/connectors-oauth-exchange-code/` (также поддерживается вариант без завершающего `/` и домен `www.grok.com`). После сохранения завершите авторизацию в браузере.
+
 ## Если Claude не подключается
 
 - Журнал шлюза показывает каждый запрос Claude (`docker compose logs -f gateway`): обнаружение (`/.well-known/…`), `/authorize`, `/token`, запросы к `/bybit`.
