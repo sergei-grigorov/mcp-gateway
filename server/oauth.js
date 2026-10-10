@@ -38,6 +38,12 @@ export const KNOWN_CLIENTS = {
 };
 const CLAUDE_REDIRECTS = ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback'];
 const CHATGPT_REDIRECTS = ['https://chatgpt.com/connector_platform_oauth_redirect'];
+const GROK_REDIRECTS = [
+  'https://grok.com/connectors-oauth-exchange-code',
+  'https://grok.com/connectors-oauth-exchange-code/',
+  'https://www.grok.com/connectors-oauth-exchange-code',
+  'https://www.grok.com/connectors-oauth-exchange-code/',
+];
 const AUTH_METHODS = ['none', 'client_secret_post', 'client_secret_basic'];
 const CODE_TTL_MS = 5 * 60_000;
 const PENDING_TTL_MS = 15 * 60_000;
@@ -258,6 +264,7 @@ export class OAuthServer {
     if (u.hash) return false;
     if (isLoopback(u)) return true;
     if (CHATGPT_REDIRECTS.some((r) => redirectMatches(r, uri))) return true;
+    if (GROK_REDIRECTS.some((r) => redirectMatches(r, uri))) return true;
     // New ChatGPT connections can use a callback-specific redirect:
     // https://chatgpt.com/connector/oauth/{callback_id}
     if (u.protocol === 'https:' && u.hostname === 'chatgpt.com' && /^\/connector\/oauth\/[^/]+$/.test(u.pathname)) return true;
@@ -269,6 +276,7 @@ export class OAuthServer {
       const u = new URL(uri);
       return isLoopback(u)
         || CHATGPT_REDIRECTS.some((r) => redirectMatches(r, uri))
+        || GROK_REDIRECTS.some((r) => redirectMatches(r, uri))
         || (u.protocol === 'https:' && u.hostname === 'chatgpt.com' && /^\/connector\/oauth\/[^/]+$/.test(u.pathname))
         || CLAUDE_REDIRECTS.some((r) => redirectMatches(r, uri));
     } catch {
@@ -341,7 +349,7 @@ export class OAuthServer {
     }
     for (const u of uris) {
       if (!this.allowedRedirect(u)) {
-        throw new OAuthError('invalid_redirect_uri', `Redirect URI is not allowed on this server: ${u}. Allowed: ChatGPT (chatgpt.com), Claude (claude.ai/claude.com), and local apps (http://localhost).`);
+        throw new OAuthError('invalid_redirect_uri', `Redirect URI is not allowed on this server: ${u}. Allowed: ChatGPT (chatgpt.com), Grok (grok.com), Claude (claude.ai/claude.com), and local apps (http://localhost).`);
       }
     }
     const method = body.token_endpoint_auth_method ?? 'client_secret_basic';
