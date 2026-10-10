@@ -71,6 +71,20 @@ test('MCP без токена: 401 со ссылкой на метаданные
   }
 });
 
+test('Grok callback is allowed only on the official connector OAuth endpoint', async () => {
+  const g = await startGateway();
+  try {
+    const ok = await req(g.base, '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Grok', redirect_uris: ['https://grok.com/connectors-oauth-exchange-code/'], token_endpoint_auth_method: 'none' }) });
+    assert.equal(ok.status, 201);
+    const noSlash = await req(g.base, '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Grok', redirect_uris: ['https://grok.com/connectors-oauth-exchange-code'], token_endpoint_auth_method: 'none' }) });
+    assert.equal(noSlash.status, 201);
+    const evil = await req(g.base, '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Spoof', redirect_uris: ['https://grok.com.evil.example/connectors-oauth-exchange-code/'], token_endpoint_auth_method: 'none' }) });
+    assert.equal(evil.json.error, 'invalid_redirect_uri');
+  } finally {
+    await g.close();
+  }
+});
+
 test('CIMD: ChatGPT — встроенный клиент и оба формата callback', async () => {
   const g = await startGateway({ fetchMetadata: async () => assert.fail('встроенный ChatGPT-документ не должен скачиваться') });
   try {
